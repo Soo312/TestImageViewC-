@@ -315,7 +315,13 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 
 					//m_image = 0.3 * m_image + 0.7 * cv::Scalar(0, 0, 0, 255);
 
-					result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
+					//result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
+
+					int reduce_x = m_image.cols / zoomrate_y;
+					int reduce_y = m_image.rows / zoomrate_y;
+
+
+					ImageAlphaBlend_Func(result, imagelist[i], m_image, &memDC, reduce_x, reduce_y, m_pBitmapInfo);
 
 #if false
 
@@ -336,6 +342,8 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 					//똑같이 지연됨
 					//result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
 					//cv::addWeighted(imagelist[i].image, imagelist[i].opacity, m_image, 1.0 - imagelist[i].opacity, 0.0, result);
+					
+					//ImageAlphaBlend_Func 가 비동기스레드여서 아마 빈화면이 카피될걸로 추정됨
 					result.copyTo(m_image);
 					result.release();
 
@@ -493,7 +501,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 
 								std::string loadname = directoryPath + '\\';
 
-								CT2CA pszConvertedLayerName(imagelist[i].GetLayerName());
+								CT2CA pszConvertedLayerName(imagelist[j].GetLayerName());
 								std::string layername(pszConvertedLayerName);
 
 								int extensionindex = layername.find('.');
@@ -505,18 +513,11 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 								loadname += ".png";
 								cv::Mat loadmat = imread(loadname , IMREAD_UNCHANGED);
 
-
-
 							}
-
-
-
-
 
 							TRACE("%d \n", changearray.front());
 							changearray.pop_front();
 							
-
 
 						}
 					
@@ -529,12 +530,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 							
 
 							int num = changearray.front();
-
 							
-
-
-
-
 
 							TRACE("%d \n", changearray.front());
 							changearray.pop_front();
@@ -715,92 +711,135 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 
 			//m_image = Mat();
 			TRACE("used DrawImage\n");
-			for (int i = 0; i < imagelist.size(); i++)
+			if (drawZoomRect)
 			{
+				
+			}
+			else
+			{
+				for (int i = 0; i < imagelist.size(); i++)
+				{
 #if true
-				Mat result;
-				if (m_image.cols == 0 && m_image.rows == 0 )
-				{
-					m_image = Mat(imagelist[i].image.rows, imagelist[i].image.cols, imagelist[i].image.type() , cv::Scalar(0, 0, 0, 0));
-					//cv::cvtColor(m_image, m_image, cv::COLOR_BGR2RGBA);
-				}
-
-				//addWeighted는 시간이 좀걸리는작업 호출횟수를 줄여야함
-
-
-				if (imagelist[i].opacity < 1.0)
-				{
-					//bool 식별해야함
-
-					/*Mat result2;
-
-					cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
-
-					cv::resize(m_image, result2, Size(reduce_x, reduce_y));
-
-					result = result * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * result2;*/
-
-
-					//opacity를 또만들어야하ㄴ
-
-					result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
-
-					/*
-					if (투명도사용)
+					if (i == 0)
 					{
-						//되는코드
-						result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
-						//되는코드
-						//cv::addWeighted(imagelist[i].image, imagelist[i].opacity, m_image, 1.0 - imagelist[i].opacity, 0.0, result);
+						m_image = Mat();
+					}
+					Mat result;
+					if (m_image.cols == 0 && m_image.rows == 0)
+					{
+						m_image = Mat(imagelist[i].image.rows, imagelist[i].image.cols, imagelist[i].image.type(), cv::Scalar(0, 0, 0, 0));
+						//cv::cvtColor(m_image, m_image, cv::COLOR_BGR2RGBA);
+					}
 
+					//addWeighted는 시간이 좀걸리는작업 호출횟수를 줄여야함
+
+
+					if (imagelist[i].opacity < 1.0)
+					{
+						//bool 식별해야함
+
+						/*Mat result2;
+
+						cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
+
+						cv::resize(m_image, result2, Size(reduce_x, reduce_y));
+
+						result = result * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * result2;*/
+
+
+						//opacity를 또만들어야하ㄴ
+						//test 1 thread로 비동기식 투명화 진행 
+						//비동기 + 전역변수 건들이면 좋지않은데.. 
+
+						Image_info aimageinfo = imagelist[i];
+
+						//thread testthread = thread(ImageAlphaBlend, result, aimageinfo,  m_image);
+
+#if false
+						std::future<Mat> futureresult = std::async(ImageAlphaBlend,result,aimageinfo,m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo);
+
+						//비동기스레드로 리턴값이 발생할경우 그값을 m_image에 저장을해야함
+
+						
+
+						return;
+#else
+						//일반thread를 사용시 딜레이가 발생함
+
+						//std::thread blendthread = thread(ImageAlphaBlend_Func, result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo);
+
+						//blendthread.join();
+
+						ImageAlphaBlend_Func(result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo);
+
+						//result.copyTo(m_image); 여기넣으면 비동기스레드라 빈이미지를 복사해서 문제발생함
+						if (i == imagelist.size() - 1)
+							return;
+						continue;
+#endif
+						//result = futureresult.get();
+
+						//result = futureresult.get();
+
+//						testthread.join();
+								//result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
+						/*
+						if (투명도사용)
+						{
+							//되는코드
+							result = imagelist[i].image * imagelist[i].opacity + (1.0 - imagelist[i].opacity) * m_image;
+							//되는코드
+							//cv::addWeighted(imagelist[i].image, imagelist[i].opacity, m_image, 1.0 - imagelist[i].opacity, 0.0, result);
+
+						}
+						else
+						{
+
+							m_image.copyTo(result);
+							break;
+
+							TRACE("");
+							//여기가 잘못됨 다음 이미지를 그려야하는데 m_image를 그려서 아무것도 안나오게만듬
+							//m_image.copyTo(result);
+						}
+						*/
+
+
+					}
+					else if (imagelist[i].opacity == 1.0)
+					{
+						//cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
+						imagelist[i].image.copyTo(result);
 					}
 					else
 					{
-
 						m_image.copyTo(result);
-						break;
+						//그냥 m_image 카피가아니라 투명화한 이미지를 위에그려야함
 
-						TRACE("");
-						//여기가 잘못됨 다음 이미지를 그려야하는데 m_image를 그려서 아무것도 안나오게만듬
-						//m_image.copyTo(result);
 					}
-					*/
-					
 
-				}
-				else if(imagelist[i].opacity == 1.0)
-				{
-					//cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
-					imagelist[i].image.copyTo(result);
-				}
-				else
-				{
-					m_image.copyTo(result);
-					//그냥 m_image 카피가아니라 투명화한 이미지를 위에그려야함
+					result.copyTo(m_image);
 
-				}
+					result.release();
+					//result.copyTo(m_image);
 
-				result.copyTo(m_image);
-
-				result.release();
-				//result.copyTo(m_image);
-
-				if (cstring == imagelist[i].GetLayerName())
-				{
-					//이거 이후로 출력안되게해야함
-					break;
-				}
+					if (cstring == imagelist[i].GetLayerName())
+					{
+						//이거 이후로 출력안되게해야함
+						break;
+					}
 
 #else
-				imagelist[i].GetImage().copyTo(m_image);
+					imagelist[i].GetImage().copyTo(m_image);
 
-				if (cstring == imagelist[i].GetLayerName())
-				{
+					if (cstring == imagelist[i].GetLayerName())
+					{
 
-					//이거 이후로 출력안되게해야함
-					break;
-				}
+						//이거 이후로 출력안되게해야함
+						break;
+					}
 #endif
+				}
 			}
 
 
@@ -947,8 +986,11 @@ void CMFCTestAppDlg::OnBnClickedOk()
 
 		CString substring = pathname.Right(stringlength - lastslash - 1);
 
+		Image_info aimage_info;
+
 		try
 		{
+
 
 
 			//임시로 크기 8000제한
@@ -1012,6 +1054,8 @@ void CMFCTestAppDlg::OnBnClickedOk()
 
 					//}
 
+					aimage_info.mini_image[imagecount] = openmat;
+
 					if (onelineMat.cols == 0 || onelineMat.rows == 0)
 					{
 						onelineMat = openmat;
@@ -1042,6 +1086,8 @@ void CMFCTestAppDlg::OnBnClickedOk()
 			}
 			else
 			{
+				//처음 파일을 열어서 이미지를 자르고 따로 저장해주는 코드포함(ImageDivideFunc)
+
 
 				TRACE("DirectoryPath first");
 
@@ -1134,7 +1180,7 @@ void CMFCTestAppDlg::OnBnClickedOk()
 
 
 
-		Image_info aimage_info;
+
 		//m_image를 사용해서 그런거같음 m_image를 복사해서 넣는게 아니라 주소값만 건들이는거 같아서 m_image에를 쓴데에서 다문제가발새아는거가음
 		//int resize_cols, resize_rows;
 
@@ -1582,6 +1628,10 @@ Mat CMFCTestAppDlg::ImageDivideFunc(Mat mat, double zoom, CString filename)
 			}
 			imwrite(savename, outputmat);
 
+			free(&onelineMat);
+			//free(&returnMat);
+			free(&outputmat);
+			free(&resultmat);
 		}
 	}
 
@@ -1589,9 +1639,133 @@ Mat CMFCTestAppDlg::ImageDivideFunc(Mat mat, double zoom, CString filename)
 
 }
 
+Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC *pDC, int reduce_x , int reduce_y, BITMAPINFO *m_pBitmapInfo )
+{
+#if false // test
+	result2 = imagelist.image * imagelist.opacity + (1.0 - imagelist.opacity) * m_image2;
+	TRACE("AlpahBlend On \n");
 
-//void CMFCTestAppDlg::OnLButtonUp(UINT nFlags, CPoint point)
-//{
-//	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-//	CDialogEx::OnLButtonUp(nFlags, point);
-//}
+
+	//필요한거 HDC,Mat,BitmapInfo
+	StretchDIBits(pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+		result2.cols, result2.rows, result2.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+#else
+	//Mat resultmat = mat(Range(rows * i, rows * (i + 1)), Range(cols * j, cols * (j + 1)));
+
+	//test1 조각이미지 다 블랜드후 합치기
+	int rows = m_image2.rows / 6;
+	int cols = m_image2.cols / 6;
+
+	bool thread_bool0 = false;
+	bool thread_bool1 = false;
+	bool thread_bool2 = false;
+	bool thread_bool3 = false;
+	bool thread_bool4 = false;
+	bool thread_bool5 = false;
+
+	for (int imagecount = 0; imagecount < 36; imagecount++)
+	{
+		int i = imagecount / 6;
+		int j = imagecount % 6;
+
+
+		//Mat range_mimage = m_image2(Range(rows * i, rows * (i + 1)), Range(cols * j, cols * (j + 1)));
+		//
+		//Mat alphablendMat = imagelist.mini_image[imagecount] * imagelist.opacity + (1.0 - imagelist.opacity) * range_mimage;
+		////ProcessWindowMessage();
+		//Mat change_location_mimage = m_image2(Rect(cols * j, rows * i, cols, rows) );
+
+		//change_location_mimage = alphablendMat;
+
+		//alphablendMat.copyTo(m_image2(cv::Rect(cols * j, rows * i, cols, rows)));
+
+//		if (imagecount != 0 && i == 0) // 1스레드가 6개의 이미지를 처리하도록 변경해야함
+		if(imagecount % 6 == 0)
+		{
+			//thread 완료 식별 bool
+
+
+
+			//std::thread testthread = thread(TestThreadFunc, m_image2, pDC, reduce_x, reduce_y,
+			//	m_pBitmapInfo, imagelist, imagecount);
+
+			std::thread testthread = thread(TestThreadFunc, m_image2,  pDC, reduce_x, reduce_y,
+				m_pBitmapInfo, imagelist, imagecount);
+
+
+			testthread.detach();
+			TRACE("Delay ON \n");
+			Sleep(400);
+		}
+	}
+
+	//StretchDIBits(
+	//	pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+	//	m_image2.cols, m_image2.rows, m_image2.data,
+	//	m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+
+
+#endif
+	return result2;
+}
+
+void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount)
+{
+	int rows = m_image2.rows / 6;
+	int cols = m_image2.cols / 6;
+
+	int i = imagecount / 6;
+	int j = imagecount % 6;
+
+
+
+	for (; imagecount / 6 != i+1; imagecount++)
+	{
+
+		j = imagecount % 6;
+		Mat range_mimage = m_image2(Range(rows * i, rows * (i + 1)), Range(cols * j, cols * (j + 1)));
+
+		Mat alphablendMat = imagelist.mini_image[imagecount] * imagelist.opacity + (1.0 - imagelist.opacity) * range_mimage;
+		//ProcessWindowMessage();
+		Mat change_location_mimage = m_image2(Rect(cols * j, rows * i, cols, rows));
+
+		change_location_mimage = alphablendMat;
+
+		alphablendMat.copyTo(m_image2(cv::Rect(cols * j, rows * i, cols, rows)));
+		
+			StretchDIBits(
+				pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+				m_image2.cols, m_image2.rows, m_image2.data,
+				m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+			TRACE("output image x = %d y = %d\n", i, j);
+	}
+	//free(&range_mimage);
+	//free(&alphablendMat);
+	//free(&change_location_mimage);
+
+	//StretchDIBits(
+	//	pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+	//	m_image2.cols, m_image2.rows, m_image2.data,
+	//	m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+}
+
+
+
+void ProcessWindowMessage()
+
+{
+
+	MSG msg;
+
+	while (::PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE))
+
+	{
+
+		::SendMessage(msg.hwnd, msg.message, msg.wParam, msg.lParam);
+
+	}
+
+}

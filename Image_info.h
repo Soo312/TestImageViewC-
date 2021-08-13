@@ -27,5 +27,7 @@ public:
 	double opacity;
 	CPoint location; // 근데 어짜피 00에다 그려서 쓸모잇는지모르겠음
 
+	Mat mini_image[36];
+
 };
 

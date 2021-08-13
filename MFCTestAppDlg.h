@@ -7,6 +7,7 @@
 #include <vector>
 #include <opencv2/core.hpp>
 
+
 using namespace cv;
 
 
@@ -38,7 +39,9 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 public:
-	Mat m_image;
+	Mat m_image; //화면에 출력될 이미지
+
+
 	BITMAPINFO* m_pBitmapInfo;
 
 	CRect picconrect;//윈도우 크기 바뀔때마다 크기를바꿔야함
@@ -101,5 +104,21 @@ public:
 	std::string directoryPath;
 
 	bool 투명도사용;
+
+	Mat ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo);
 //	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	
+ 	static void TestThreadFunc(Mat result2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount);
+
+
+	// 쓰레드 동작 유무 확인 Bool
+
+	bool thread_bool0 = false;
+	bool thread_bool1 = false;
+	bool thread_bool2 = false;
+	bool thread_bool3 = false;
+	bool thread_bool4 = false;
+	bool thread_bool5 = false;
 };
+
+void ProcessWindowMessage();
