@@ -103,13 +103,17 @@ public:
 
 	std::string directoryPath;
 
-	bool 투명도사용;
+	bool bool_useopcaity;
 
 	Mat ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo);
 //	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	
- 	static void TestThreadFunc(Mat result2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount);
+ 	static void TestThreadFunc(Mat result2, CDC* pDC, int reduce_x, 
+		int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount
+	, void *pointer);
 
+
+	
 
 	// 쓰레드 동작 유무 확인 Bool
 
@@ -119,6 +123,13 @@ public:
 	bool thread_bool3 = false;
 	bool thread_bool4 = false;
 	bool thread_bool5 = false;
+
+	static void HscrollThread_func(void* pointer);
+
+	static void ListDbclickThread_func(void* pointer);
+
+	void refresh(CDC* pDC,Mat m_image,int reduce_x, int reduce_y);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 };
 
 void ProcessWindowMessage();

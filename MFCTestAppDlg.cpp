@@ -95,6 +95,7 @@ BEGIN_MESSAGE_MAP(CMFCTestAppDlg, CDialogEx)
 	ON_LBN_DBLCLK(IDC_LIST1, &CMFCTestAppDlg::OnDblclk_ListBoxitem)
 	ON_WM_HSCROLL()
 //	ON_WM_LBUTTONUP()
+ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 
@@ -320,8 +321,15 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 					int reduce_x = m_image.cols / zoomrate_y;
 					int reduce_y = m_image.rows / zoomrate_y;
 
+					//이걸 async로 바꿔야할지 말지 고민중
+
+					//우클릭 드래그시 확대 화면을 출력해야하는데 지금은 출력이안됨
+					
+					//test 0826
+					//drawrect = rect3;
 
 					ImageAlphaBlend_Func(result, imagelist[i], m_image, &memDC, reduce_x, reduce_y, m_pBitmapInfo);
+					//줌드로우일때 result가 계산이 덜됨
 
 #if false
 
@@ -344,8 +352,8 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 					//cv::addWeighted(imagelist[i].image, imagelist[i].opacity, m_image, 1.0 - imagelist[i].opacity, 0.0, result);
 					
 					//ImageAlphaBlend_Func 가 비동기스레드여서 아마 빈화면이 카피될걸로 추정됨
-					result.copyTo(m_image);
-					result.release();
+					//result.copyTo(m_image);
+					//result.release();
 
 
 				}
@@ -426,6 +434,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 			}
 			
 			list<int> changearray;
+			//이미지 교체
 			//목표 : 확대한 이미지에 해상도가 높은 이미지를 집어넣어 확대시 해상도가 높은 이미지만 보이도록
 			if (rect.Height() != 0)
 			{
@@ -559,6 +568,8 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 				rect3.Width(), rect3.Height(), m_image.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 						//imshow("test", m_image);
 
+
+
 #endif
 
 
@@ -639,7 +650,7 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 
 		SetStretchBltMode(pDC->GetSafeHdc(), COLORONCOLOR);
 
-		if (imagelist.size() > 0)
+		if (imagelist.size() > 0)   
 		{
 			// 모든 이미지들을 순서대로 m_image에 넣거나 덮어써야하는데..
 			//냅다 memDC에 그릴경우(지금은 pDC) 추후 m_image에서 확대할때 문제가생겨 m_image에 그려야함
@@ -770,12 +781,24 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 
 						//blendthread.join();
 
+						//더블클릭 , 투명도조절시
 						ImageAlphaBlend_Func(result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo);
-
+						
 						//result.copyTo(m_image); 여기넣으면 비동기스레드라 빈이미지를 복사해서 문제발생함
 						if (i == imagelist.size() - 1)
-							return;
-						continue;
+						{
+							//Sleep(1000);
+							//break;
+							break;
+						}
+
+						if (cstring == imagelist[i].GetLayerName())
+						{
+							//이거 이후로 출력안되게해야함
+							break;
+						}
+						else
+							continue;
 #endif
 						//result = futureresult.get();
 
@@ -809,20 +832,43 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 					else if (imagelist[i].opacity == 1.0)
 					{
 						//cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
-						imagelist[i].image.copyTo(result);
+						imagelist[i].image.copyTo(m_image);
+						if (cstring == imagelist[i].GetLayerName())
+						{
+							//이거 이후로 출력안되게해야함
+							break;
+						}
+						else
+						continue;
+
+
+						//imagelist[i].image.copyTo(result);
 					}
 					else
 					{
-						m_image.copyTo(result);
+						if (cstring == imagelist[i].GetLayerName())
+						{
+							//이거 이후로 출력안되게해야함
+							break;
+						}
+						else
+							continue;
+
+						//m_image.copyTo(result);
 						//그냥 m_image 카피가아니라 투명화한 이미지를 위에그려야함
 
 					}
+					try
+					{
+						result.copyTo(m_image);
 
-					result.copyTo(m_image);
-
-					result.release();
-					//result.copyTo(m_image);
-
+						result.release();
+						//result.copyTo(m_image);
+					}
+					catch (Exception ex)
+					{
+						TRACE("%s", ex.msg);
+					}
 					if (cstring == imagelist[i].GetLayerName())
 					{
 						//이거 이후로 출력안되게해야함
@@ -838,10 +884,9 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 						//이거 이후로 출력안되게해야함
 						break;
 					}
-#endif
+#endif 
 				}
 			}
-
 
 			StretchDIBits(pDC->GetSafeHdc(), 0, 0, reduce_x,reduce_y, 0, 0,
 				m_image.cols, m_image.rows , m_image.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
@@ -1475,9 +1520,17 @@ void CMFCTestAppDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 		if (imagelist[i].GetLayerName() == cstring)
 		{
 			imagelist[i].opacity = (double)m_slide.GetPos() / 100;
-			투명도사용 = true;
-			OnDrawImage();
-			투명도사용 = false;
+			bool_useopcaity = true;
+			
+			//0823 test hscoll을 스레드를 이용하여 함수실행
+
+			thread testthread = thread(HscrollThread_func,this);
+
+
+			testthread.detach();
+
+			//OnDrawImage();
+			bool_useopcaity = false;
 
 			break;
 		}
@@ -1485,6 +1538,17 @@ void CMFCTestAppDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	isUsingScroll = false;
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
+void CMFCTestAppDlg::HscrollThread_func(void* pointer)
+{
+	CMFCTestAppDlg* pThis = reinterpret_cast<CMFCTestAppDlg *>(pointer);
+	pThis->OnDrawImage();
+
+	pThis->Invalidate(false); 
+}
+
+
+
+
 
 void CMFCTestAppDlg::blendImageToMiddle(cv::Mat background, cv::Mat image)
 {
@@ -1628,10 +1692,6 @@ Mat CMFCTestAppDlg::ImageDivideFunc(Mat mat, double zoom, CString filename)
 			}
 			imwrite(savename, outputmat);
 
-			free(&onelineMat);
-			//free(&returnMat);
-			free(&outputmat);
-			free(&resultmat);
 		}
 	}
 
@@ -1657,12 +1717,6 @@ Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat 
 	int rows = m_image2.rows / 6;
 	int cols = m_image2.cols / 6;
 
-	bool thread_bool0 = false;
-	bool thread_bool1 = false;
-	bool thread_bool2 = false;
-	bool thread_bool3 = false;
-	bool thread_bool4 = false;
-	bool thread_bool5 = false;
 
 	for (int imagecount = 0; imagecount < 36; imagecount++)
 	{
@@ -1687,16 +1741,14 @@ Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat 
 
 
 
-			//std::thread testthread = thread(TestThreadFunc, m_image2, pDC, reduce_x, reduce_y,
-			//	m_pBitmapInfo, imagelist, imagecount);
-
+			
 			std::thread testthread = thread(TestThreadFunc, m_image2,  pDC, reduce_x, reduce_y,
-				m_pBitmapInfo, imagelist, imagecount);
+				m_pBitmapInfo, imagelist, imagecount ,this );
 
 
 			testthread.detach();
 			TRACE("Delay ON \n");
-			Sleep(400);
+			Sleep(100);//150 일때는 4번줄부터 안보였음
 		}
 	}
 
@@ -1711,15 +1763,24 @@ Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat 
 	return result2;
 }
 
-void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount)
+void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, 
+	BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount, void *pointer)
 {
+
+	CMFCTestAppDlg* pThis = reinterpret_cast<CMFCTestAppDlg*>(pointer);
+
 	int rows = m_image2.rows / 6;
 	int cols = m_image2.cols / 6;
 
 	int i = imagecount / 6;
 	int j = imagecount % 6;
 
-
+	bool thread_bool0 = false;
+	bool thread_bool1 = false;
+	bool thread_bool2 = false;
+	bool thread_bool3 = false;
+	bool thread_bool4 = false;
+	bool thread_bool5 = false;
 
 	for (; imagecount / 6 != i+1; imagecount++)
 	{
@@ -1734,24 +1795,117 @@ void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int re
 		change_location_mimage = alphablendMat;
 
 		alphablendMat.copyTo(m_image2(cv::Rect(cols * j, rows * i, cols, rows)));
-		
-			StretchDIBits(
-				pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
-				m_image2.cols, m_image2.rows, m_image2.data,
-				m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
-			TRACE("output image x = %d y = %d\n", i, j);
+		try 
+		{
+			//StretchDIBits(
+			//	pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+			//	m_image2.cols, m_image2.rows, m_image2.data,
+			//	m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+			//pThis->Invalidate(false);
+			//if (i == 5 && j == 5)
+			//{
+			//	thread_bool5 = true;
+			//	pThis->refresh(pDC, m_image2, reduce_x, reduce_y);
+			//}
+
+		}
+		catch (Exception ex)
+		{
+			TRACE("%s", ex.msg);
+		}
+		TRACE("output image x = %d y = %d\n", i, j);
+
+		//pThis->refresh(pDC, m_image2, reduce_x, reduce_y);
+
+
+		//여기 딜레이는 의미가 없는것같음
+
 	}
+	pThis->refresh(pDC, m_image2, reduce_x, reduce_y);
+
 	//free(&range_mimage);
 	//free(&alphablendMat);
 	//free(&change_location_mimage);
 
-	//StretchDIBits(
-	//	pDC->GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
-	//	m_image2.cols, m_image2.rows, m_image2.data,
-	//	m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+	//pThis->Invalidate(FALSE);
 
+	
 }
 
+
+void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
+{
+
+	//한칸마다 refresh를하네? 스레드 끝나고 다시그리는 함수
+	TRACE("CALLED REFRESH_FUNC");
+	CClientDC dc(GetDlgItem(IDC_PICCON));
+
+	CRect rect;
+
+	GetDlgItem(IDC_PICCON)->GetClientRect(&rect);
+
+	CDC memDC;
+	CBitmap* pOldBitmap, bitmap;
+
+	//Picture Control DC에 호환되는ㄴ CDC를생성
+	memDC.CreateCompatibleDC(&dc);
+
+	// PicCon의 크기와 동일한 비트맵을 생성
+	bitmap.CreateCompatibleBitmap(&dc, rect.Width(), rect.Height());
+
+	//임시버퍼에서 방금 생성된 비트맵 선택, 이전 비트맵 저장
+	pOldBitmap = memDC.SelectObject(&bitmap);
+
+	//임시버퍼를 검은색으로 채움
+	memDC.PatBlt(0, 0, rect.Width(), rect.Height(), BLACKNESS);
+
+	SetStretchBltMode(memDC.GetSafeHdc(), COLORONCOLOR);
+
+
+	if (drawZoomRect)
+	{
+		//rect3 는 drawrrect 의 크기를 현재 상황에 맞추어 계산한 rect의 크기
+
+		CRect rect3((drawrect.left) * zoomrate_y, drawrect.top * zoomrate_y, (drawrect.left + drawrect.Width()) * zoomrate_y, (drawrect.top + drawrect.Height()) * zoomrate_y);
+
+		int temp;
+
+		if (rect3.left > rect3.right)
+		{
+			temp = rect3.left;
+			rect3.left = rect3.right;
+			rect3.right = temp;
+		}
+
+		if (rect3.top > rect3.bottom)
+		{
+			temp = rect3.top;
+			rect3.top = rect3.bottom;
+			rect3.bottom = temp;
+		}
+
+		StretchDIBits(memDC.GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), rect3.left, m_image2.rows - rect3.bottom,
+			rect3.Width(), rect3.Height(), m_image2.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+		
+	}
+	else
+	{
+		StretchDIBits(
+			memDC.GetSafeHdc(), 0, 0, reduce_x, reduce_y, 0, 0,
+			m_image2.cols, m_image2.rows, m_image2.data,
+			m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+
+	}
+	dc.BitBlt(0, 0, rect.Width(), rect.Height(), &memDC, 0, 0, SRCCOPY);
+
+	//이전비트맵으로 재설정 (rect그리기전의 비트맵)	
+
+	memDC.SelectObject(pOldBitmap);
+
+	memDC.DeleteDC();
+}
 
 
 void ProcessWindowMessage()
@@ -1768,4 +1922,21 @@ void ProcessWindowMessage()
 
 	}
 
+}
+
+
+void CMFCTestAppDlg::OnSize(UINT nType, int cx, int cy)
+{
+	CDialogEx::OnSize(nType, cx, cy);
+
+	CWnd* pCtrl = GetDlgItem(IDC_PICCON);
+
+	if (!pCtrl) { return; }
+
+	CRect rectCtrl;
+	pCtrl->GetWindowRect(&rectCtrl);
+	ScreenToClient(&rectCtrl);
+
+	pCtrl->MoveWindow(rectCtrl.left, rectCtrl.top, cx - 2 * rectCtrl.left, cy - rectCtrl.top - rectCtrl.left, TRUE);
+	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
 }
