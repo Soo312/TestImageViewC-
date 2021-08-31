@@ -47,6 +47,7 @@ public:
 //	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 //	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 //	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void LoadFile();
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -62,6 +63,7 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 //	ON_WM_RBUTTONDOWN()
 //	ON_WM_RBUTTONUP()
 //	ON_WM_MOUSEMOVE()
+ON_COMMAND(ID_MENU_0_1, &CAboutDlg::LoadFile)
 END_MESSAGE_MAP()
 
 
@@ -96,6 +98,7 @@ BEGIN_MESSAGE_MAP(CMFCTestAppDlg, CDialogEx)
 	ON_WM_HSCROLL()
 //	ON_WM_LBUTTONUP()
 ON_WM_SIZE()
+ON_COMMAND(ID_MENU_0_1, &CMFCTestAppDlg::Event_menu_fileopen)
 END_MESSAGE_MAP()
 
 
@@ -217,6 +220,8 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 	{
 
 		//zoomRect를 그릴때 동작 // listselect 는 현재 리스트 선택시 확인하는 플래그bool
+		//list select change , load file 시 이쪽으로옴
+
 		DrawImage(&memDC,listselect); 
 		if (drawZoomRect) 
 		{
@@ -227,7 +232,9 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 	{
 		//if (m_image != nullptr)
 
+		//우클릭으로 확대할때만 출력이됨
 
+		CRect rect3;
 		if(!m_image.empty())
 		{
 			CRect rect;
@@ -240,7 +247,6 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 
 			//CRect rect3((drawrect.left )*zoomrate_x, drawrect.top* zoomrate_y, (drawrect.left + drawrect.Width())*zoomrate_x, (drawrect.top+drawrect.Height())* zoomrate_y);
 
-			CRect rect3((drawrect.left) * zoomrate_y, drawrect.top * zoomrate_y, (drawrect.left + drawrect.Width()) * zoomrate_y, (drawrect.top + drawrect.Height()) * zoomrate_y);
 
 			//rect3.left = drawrect.left - rect2.left;
 			//rect3.top = drawrect.top - rect2.top;
@@ -248,6 +254,36 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 			//drawrect.Height = drawrect.Height;
 
 			//CRect rect3(500, 500, 2500, 2500);
+
+			if (beforerect.Width() == 0 || beforerect.Height() == 0)
+			{
+				rect3 = CRect((drawrect.left) * zoomrate_y, drawrect.top * zoomrate_y, (drawrect.left + drawrect.Width()) * zoomrate_y, (drawrect.top + drawrect.Height()) * zoomrate_y);
+
+			}
+			else
+			{
+				// 이미 확대한 상태에서 한번더 확대를 해야함 계산식필요
+				double zoomrate_x_beforerect = (double)beforerect.Width() / (double)rect.Width();
+				double zoomrate_y_beforerect = (double)beforerect.Height() / (double)rect.Height();
+					//beforerect 즉 확대후 또확대를할때 비율을 계산하는식 beforerect와 drawrect의 비율을 계산한다
+				double zoomrate_y_mimage_beforeimage = (double)m_image.rows / (double)beforerect.Height();
+
+
+				double test1 = (double)beforerect.Height() / (double)drawrect.Height();
+
+				//rect3 = CRect((drawrect.left) * zoomrate_y * zoomrate_y_beforerect, drawrect.top * zoomrate_y * zoomrate_y_beforerect, (drawrect.left + drawrect.Width()) * zoomrate_y * zoomrate_y_beforerect, (drawrect.top + drawrect.Height()) * zoomrate_y * zoomrate_y_beforerect);
+				rect3 = CRect(beforerect.left + ((drawrect.left) * zoomrate_x_beforerect ),
+					beforerect.top + (drawrect.top * zoomrate_y_beforerect),
+					beforerect.left + ((drawrect.left + drawrect.Width()) * zoomrate_x_beforerect),
+					beforerect.top + ((drawrect.top + drawrect.Height()) * zoomrate_y_beforerect)
+
+				);
+
+
+				TRACE("\n%d \t %d \t %d \t %d \n", beforerect.left, beforerect.right, beforerect.top, beforerect.bottom);
+				TRACE("\n%d \t %d \t %d \t %d \n", rect3.left,rect3.right,rect3.top,rect3.bottom);
+				TRACE("\n");
+			}
 
 			int temp;
 
@@ -257,7 +293,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 				rect3.left = rect3.right;
 				rect3.right = temp;
 			}
-			
+
 			if (rect3.top > rect3.bottom)
 			{
 				temp = rect3.top;
@@ -265,7 +301,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 				rect3.bottom = temp;
 			}
 
-			
+
 
 			SetStretchBltMode(memDC.GetSafeHdc(), COLORONCOLOR);
 			//StretchDIBits(memDC.GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), rect3.left, m_image.rows-rect3.bottom, 
@@ -328,7 +364,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 					//test 0826
 					//drawrect = rect3;
 
-					ImageAlphaBlend_Func(result, imagelist[i], m_image, &memDC, reduce_x, reduce_y, m_pBitmapInfo);
+					ImageAlphaBlend_Func(result, imagelist[i], m_image, &memDC, reduce_x, reduce_y, m_pBitmapInfo , i , imagelist.size() );
 					//줌드로우일때 result가 계산이 덜됨
 
 #if false
@@ -360,6 +396,7 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 				else
 				{
 					imagelist[i].image.copyTo(m_image);
+					beforerect = rect3;
 				}
 
 
@@ -580,6 +617,8 @@ void CMFCTestAppDlg::OnDrawImage(bool listselect )
 
 			/*m_image.Draw(memDC.m_hDC, rect, rect3);*/
 
+
+
 			TRACE("left = %d top =%d right = %d bottom = %d\n", rect3.left, rect3.top, rect3.right, rect3.bottom);
 			
 			TRACE("\nWidth = %d Height = %d \n", rect3.Width(), rect3.Height());
@@ -615,7 +654,7 @@ void CMFCTestAppDlg::DrawRect(CDC* pDC)
 	pOldBrush = (CBrush*)pDC->SelectStockObject(NULL_BRUSH);
 	pOldPen = pDC->SelectObject(&pen);
 
-	drawrect=CRect(rect_start_position.x, rect_start_position.y, rect_end_position.x, rect_end_position.y);
+	drawrect = CRect(rect_start_position.x, rect_start_position.y, rect_end_position.x, rect_end_position.y);
 
 	pDC->Rectangle(drawrect);
 	pDC->SelectObject(pOldPen);
@@ -722,18 +761,33 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 
 			//m_image = Mat();
 			TRACE("used DrawImage\n");
-			if (drawZoomRect)
+			if (drawZoomRect )
 			{
-				
+				if (!(beforerect.Width() == 0 || beforerect.Height() == 0))
+				{
+					//확대  Rect그리고나서 마우스를 움직일때 그려지는 상황을 여기그려야함
+
+
+					StretchDIBits(pDC->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), beforerect.left, m_image.rows - beforerect.bottom,
+						beforerect.Width(), beforerect.Height(), m_image.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+					return;
+				}
 			}
 			else
 			{
 				for (int i = 0; i < imagelist.size(); i++)
 				{
 #if true
+
 					if (i == 0)
 					{
-						m_image = Mat();
+						if (back_image.cols == 0 || back_image.rows == 0)
+						{
+							back_image = Mat();
+							m_image = Mat();
+						}
+
+
 					}
 					Mat result;
 					if (m_image.cols == 0 && m_image.rows == 0)
@@ -782,7 +836,8 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 						//blendthread.join();
 
 						//더블클릭 , 투명도조절시
-						ImageAlphaBlend_Func(result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo);
+						ImageAlphaBlend_Func(result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo ,
+							i, imagelist.size(), ListSelect);
 						
 						//result.copyTo(m_image); 여기넣으면 비동기스레드라 빈이미지를 복사해서 문제발생함
 						if (i == imagelist.size() - 1)
@@ -832,7 +887,9 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 					else if (imagelist[i].opacity == 1.0)
 					{
 						//cv::resize(imagelist[i].image, result, Size(reduce_x, reduce_y));
-						imagelist[i].image.copyTo(m_image);
+						//imagelist[i].image.copyTo(m_image);
+						ImageAlphaBlend_Func(result, imagelist[i], m_image, pDC, reduce_x, reduce_y, m_pBitmapInfo,
+							i , imagelist.size(), ListSelect);
 						if (cstring == imagelist[i].GetLayerName())
 						{
 							//이거 이후로 출력안되게해야함
@@ -890,8 +947,13 @@ void CMFCTestAppDlg::DrawImage(CDC* pDC, bool ListSelect)
 
 			StretchDIBits(pDC->GetSafeHdc(), 0, 0, reduce_x,reduce_y, 0, 0,
 				m_image.cols, m_image.rows , m_image.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+			
+			if (back_image.cols == 0 || back_image.rows == 0)
+			{
+				back_image = Mat(m_image.cols, m_image.rows, m_image.type(), cv::Scalar(0, 0, 0, 0) );
 				
-		
+			}
+
 		//imshow("test", m_image);
 
 #else
@@ -1286,7 +1348,7 @@ void CMFCTestAppDlg::OnBnClickedOk()
 		
 		
 		
-		OnDrawImage();
+		OnDrawImage(true);
 
 
 		
@@ -1335,6 +1397,8 @@ void CMFCTestAppDlg::OnRButtonUp(UINT nFlags, CPoint point)
 		OnMouseMove(nFlags, point);
 		bool_drawingrect = false;
 		int temp;
+
+		//bool_zoomstart = false;
 
 		//if (drawrect != nullptr)
 		//{
@@ -1403,6 +1467,7 @@ void CMFCTestAppDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	//왼쪽 더블클릭 인덱스
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	beforerect = CRect();
 	bool_zoomstart = false;
 	drawZoomRect = false;
 	//여기서 기본 더블클릭시 원래화면 복귀 + ZoomRect를 삭제해야함
@@ -1528,6 +1593,8 @@ void CMFCTestAppDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 
 
 			testthread.detach();
+
+			//testthread.join();
 
 			//OnDrawImage();
 			bool_useopcaity = false;
@@ -1699,7 +1766,8 @@ Mat CMFCTestAppDlg::ImageDivideFunc(Mat mat, double zoom, CString filename)
 
 }
 
-Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC *pDC, int reduce_x , int reduce_y, BITMAPINFO *m_pBitmapInfo )
+Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC *pDC, int reduce_x , int reduce_y, BITMAPINFO *m_pBitmapInfo,
+	int now_count, int quantity , bool ListSelected)
 {
 #if false // test
 	result2 = imagelist.image * imagelist.opacity + (1.0 - imagelist.opacity) * m_image2;
@@ -1742,11 +1810,12 @@ Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat 
 
 
 			
-			std::thread testthread = thread(TestThreadFunc, m_image2,  pDC, reduce_x, reduce_y,
-				m_pBitmapInfo, imagelist, imagecount ,this );
+			std::thread testthread = thread(Thread_AlphaBelnd_Func, m_image2,  pDC, reduce_x, reduce_y,
+				m_pBitmapInfo, imagelist, imagecount ,this ,now_count , quantity, ListSelected);
 
 
 			testthread.detach();
+			//testthread.join();
 			TRACE("Delay ON \n");
 			Sleep(100);//150 일때는 4번줄부터 안보였음
 		}
@@ -1763,8 +1832,9 @@ Mat CMFCTestAppDlg::ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat 
 	return result2;
 }
 
-void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, 
-	BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount, void *pointer)
+void CMFCTestAppDlg::Thread_AlphaBelnd_Func(Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, 
+	BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount, void *pointer,
+	int now_count, int quantity, bool listselect)
 {
 
 	CMFCTestAppDlg* pThis = reinterpret_cast<CMFCTestAppDlg*>(pointer);
@@ -1821,7 +1891,9 @@ void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int re
 		//여기 딜레이는 의미가 없는것같음
 
 	}
-	pThis->refresh(pDC, m_image2, reduce_x, reduce_y);
+	pThis->refresh(pDC, m_image2, reduce_x, reduce_y,now_count, quantity, listselect);
+	
+
 
 	//free(&range_mimage);
 	//free(&alphablendMat);
@@ -1833,7 +1905,8 @@ void CMFCTestAppDlg::TestThreadFunc(Mat m_image2, CDC* pDC, int reduce_x, int re
 }
 
 
-void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
+void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y,
+	int now_count, int quantity, bool listselect)
 {
 
 	//한칸마다 refresh를하네? 스레드 끝나고 다시그리는 함수
@@ -1866,8 +1939,36 @@ void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
 	{
 		//rect3 는 drawrrect 의 크기를 현재 상황에 맞추어 계산한 rect의 크기
 
-		CRect rect3((drawrect.left) * zoomrate_y, drawrect.top * zoomrate_y, (drawrect.left + drawrect.Width()) * zoomrate_y, (drawrect.top + drawrect.Height()) * zoomrate_y);
+		CRect rect3;
 
+		if (beforerect.Width() == 0 || beforerect.Height() == 0)
+		{
+			rect3 = CRect((drawrect.left) * zoomrate_y, drawrect.top * zoomrate_y, (drawrect.left + drawrect.Width()) * zoomrate_y, (drawrect.top + drawrect.Height()) * zoomrate_y);
+
+		}
+		else
+		{
+			// 이미 확대한 상태에서 한번더 확대를 해야함 계산식필요
+			double zoomrate_x_beforerect = (double)beforerect.Width() / (double)rect.Width();
+			double zoomrate_y_beforerect = (double)beforerect.Height() / (double)rect.Height();
+			//beforerect 즉 확대후 또확대를할때 비율을 계산하는식 beforerect와 drawrect의 비율을 계산한다
+			double zoomrate_y_mimage_beforeimage = (double)m_image.rows / (double)beforerect.Height();
+
+
+			double test1 = (double)beforerect.Height() / (double)drawrect.Height();
+
+			//rect3 = CRect((drawrect.left) * zoomrate_y * zoomrate_y_beforerect, drawrect.top * zoomrate_y * zoomrate_y_beforerect, (drawrect.left + drawrect.Width()) * zoomrate_y * zoomrate_y_beforerect, (drawrect.top + drawrect.Height()) * zoomrate_y * zoomrate_y_beforerect);
+			rect3 = CRect(beforerect.left + ((drawrect.left) * zoomrate_x_beforerect),
+				beforerect.top + (drawrect.top * zoomrate_y_beforerect),
+				beforerect.left + ((drawrect.left + drawrect.Width()) * zoomrate_x_beforerect),
+				beforerect.top + ((drawrect.top + drawrect.Height()) * zoomrate_y_beforerect)
+
+			);
+
+			//TRACE("\n%d \t %d \t %d \t %d \n", beforerect.left, beforerect.right, beforerect.top, beforerect.bottom);
+			//TRACE("\n%d \t %d \t %d \t %d \n", rect3.left, rect3.right, rect3.top, rect3.bottom);
+			//TRACE("\n");
+		}
 		int temp;
 
 		if (rect3.left > rect3.right)
@@ -1884,9 +1985,13 @@ void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
 			rect3.bottom = temp;
 		}
 
+
+
 		StretchDIBits(memDC.GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), rect3.left, m_image2.rows - rect3.bottom,
 			rect3.Width(), rect3.Height(), m_image2.data, m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 
+
+		
 		
 	}
 	else
@@ -1896,8 +2001,14 @@ void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
 			m_image2.cols, m_image2.rows, m_image2.data,
 			m_pBitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 
-
 	}
+
+	//if (now_count != quantity - 1 && listselect)
+	//{
+	//	TRACE("\nBACK_IMAGE SAVED  \n");
+	//	m_image2.copyTo(back_image);
+	//}
+
 	dc.BitBlt(0, 0, rect.Width(), rect.Height(), &memDC, 0, 0, SRCCOPY);
 
 	//이전비트맵으로 재설정 (rect그리기전의 비트맵)	
@@ -1905,11 +2016,12 @@ void CMFCTestAppDlg::refresh(CDC* pDC, Mat m_image2, int reduce_x, int reduce_y)
 	memDC.SelectObject(pOldBitmap);
 
 	memDC.DeleteDC();
+
+	TRACE("\nrefresh done \n");
 }
 
 
 void ProcessWindowMessage()
-
 {
 
 	MSG msg;
@@ -1939,4 +2051,366 @@ void CMFCTestAppDlg::OnSize(UINT nType, int cx, int cy)
 
 	pCtrl->MoveWindow(rectCtrl.left, rectCtrl.top, cx - 2 * rectCtrl.left, cy - rectCtrl.top - rectCtrl.left, TRUE);
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+
+	//CWnd* pCtrl2 = GetDlgItem(IDOK);
+
+	//CRect rectCtrl2;
+	//pCtrl2->GetWindowRect(&rectCtrl2);
+	//ScreenToClient(&rectCtrl2);
+
+
+	//pCtrl2->MoveWindow(  )
+
+
+
+
+
+
+}
+
+
+void CAboutDlg::LoadFile()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+
+void CMFCTestAppDlg::Event_menu_fileopen()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+
+	CString filter = _T("(*.*)|*.*");
+	CFileDialog dlg(TRUE, _T(""), _T(""), OFN_HIDEREADONLY, filter);
+	CImage loadimage;
+
+
+
+	if (dlg.DoModal() == IDOK)
+	{
+		m_image = Mat();
+
+		CString pathname = dlg.GetPathName();
+#if true // 처음 열었을때 큰이미지인가 작은이미지인가 판별후 큰이미지일경우 작은이미지로 나누어 화면에 띄우는 코드
+		//일단 큰이미지인가 여부는 제외하고 temp폴더 여부 확인후 만들어 이미지 나누기
+		int lastslash = pathname.ReverseFind('\\');
+		int stringlength = pathname.GetLength();
+
+		CString DirectoryPath = pathname.Left(lastslash);
+		DirectoryPath += "\\Temp";
+
+
+		CT2CA pszConvertedAnsiString(DirectoryPath);
+		std::string convert_directorypath(pszConvertedAnsiString);
+
+
+		directoryPath = convert_directorypath;
+
+		if (GetFileAttributes(DirectoryPath) == -1)
+		{
+			TRACE("not exist Temp Directory\n %s\n", DirectoryPath);
+			CreateDirectory(DirectoryPath, NULL);
+
+		}
+		else
+		{
+			TRACE("exist Temp Directory\n");
+
+		}
+#endif
+
+
+
+#if false //Cimage 사용할떄
+		//에러 무시하면 잘됨
+		m_image.Destroy(); // 추가시 에러발생X
+
+
+		m_image.Load(pathname);
+
+		CRect rect;
+		GetDlgItem(IDC_PICCON)->GetClientRect(&rect);
+
+		zoomrate_x = m_image.GetWidth() / rect.Width();
+		zoomrate_y = m_image.GetHeight() / rect.Height();
+
+
+
+#else
+		//Mat사용 25000x25662까진잘됨
+
+		CRect rect;
+		GetDlgItem(IDC_PICCON)->GetClientRect(&rect);
+
+		CT2CA pszConvertedAnsiString2(pathname);
+		std::string s(pszConvertedAnsiString2);
+
+
+		CString substring = pathname.Right(stringlength - lastslash - 1);
+
+		Image_info aimage_info;
+
+		try
+		{
+
+
+
+			//임시로 크기 8000제한
+
+			//std::regex re(DirectoryPath + '\\' + "\\d*\\", std::regex::grep | std::regex::icase);
+
+			CFileFind finder;
+
+			//BOOL bWorking = finder.FindFile(DirectoryPath+"\\)
+
+			//if (GetFileAttributes(DirectoryPath+'\\'+"substring\\d*\\") != -1)
+			//{
+			//	
+			//}
+			//else
+			//{
+			//	
+			//}
+
+			HANDLE fileSearch;
+			WIN32_FIND_DATA wfd;
+
+			int extension_index = substring.ReverseFind('.');
+
+			CString filename_notextension = substring.Left(extension_index);
+			CString filepath_not_extension = DirectoryPath + '\\' + filename_notextension + "*";
+
+
+			// 이미지이름* 이있으면 파일이 다있다고 판단함
+			fileSearch = FindFirstFile(filepath_not_extension, &wfd);
+
+			if (fileSearch != INVALID_HANDLE_VALUE)
+			{
+				TRACE("DirectoryPath not first");
+
+				//파일이 있으니 합쳐서 m_image로 만들기
+
+				Mat onelineMat;
+
+				for (int imagecount = 0; imagecount < 36; imagecount++)
+				{
+					CString openpath;
+					CString str;
+
+					std::stringstream ssInt;
+					ssInt << imagecount;
+
+					openpath = filepath_not_extension.Left(filepath_not_extension.GetLength() - 1) + _T("_0.2_");//_T("_0.2_");
+
+					CT2CA pszConvert(openpath);
+					std::string openpath_str(pszConvert);
+					openpath_str += ssInt.str() + ".png";
+
+					Mat openmat = imread(openpath_str, IMREAD_UNCHANGED);
+					//0.2면 이미지 잡아늘리기
+					//if (openpath_str.find("0.2") > 0)
+					//{
+					//	TRACE("IN \n");
+					//	//5배로하니까 출력이 검은화면이되버림
+					//	cv::resize(openmat, openmat, cv::Size(openmat.cols * 5, openmat.rows * 5));
+
+					//}
+
+					aimage_info.mini_image[imagecount] = openmat;
+
+					//cv::resize(openmat, openmat, cv::Size(openmat.cols * 5, openmat.rows * 5));
+
+					if (onelineMat.cols == 0 || onelineMat.rows == 0)
+					{
+						onelineMat = openmat;
+					}
+					else
+					{
+						hconcat(onelineMat, openmat, onelineMat);
+						if (imagecount % 6 == 5)
+						{
+							if (m_image.cols == 0 || m_image.rows == 0)
+							{
+								m_image = onelineMat;
+							}
+							else
+							{
+								vconcat(m_image, onelineMat, m_image);
+							}
+							onelineMat = Mat();
+
+						}
+
+
+					}
+
+				}
+
+
+			}
+			else
+			{
+				//처음 파일을 열어서 이미지를 자르고 따로 저장해주는 코드포함(ImageDivideFunc)
+
+
+				TRACE("DirectoryPath first");
+
+#if true
+				m_image = imread(s, IMREAD_UNCHANGED);
+
+				if (m_image.cols * m_image.rows > 640000000)//640,000,000
+				{
+					//이미지는 6x6으로 해상도 0.2 0.5 1.0으로 조절해서 3단계로 저장후 현재 줌상태에 따라서 3단계로 불러올것이다
+
+					filepath_not_extension = DirectoryPath + '\\' + filename_notextension;
+
+					/*thread t1 = thread(ImageDivideFunc, m_image, 1.0, filepath_not_extension);
+					thread t2 = thread(ImageDivideFunc, m_image, 0.5, filepath_not_extension);
+					thread t3 = thread(ImageDivideFunc, m_image, 0.2, filepath_not_extension);
+
+					t1.join();
+					t2.join();
+					t3.join();*/
+
+					std::future<Mat> f1 = std::async(ImageDivideFunc, m_image, 0.2, filepath_not_extension);
+					//std::future<Mat> f2 = std::async(ImageDivideFunc, m_image, 0.5, filepath_not_extension);
+					//std::future<Mat> f3 = std::async(ImageDivideFunc, m_image, 0.2, filepath_not_extension);
+					//std::future<Mat> f2 = std::async(ImageDivideFunc, m_image, 0.5, filepath_not_extension);
+					//std::future<Mat> f3 = std::async(ImageDivideFunc, m_image, 1.0, filepath_not_extension);
+					thread t2 = thread(ImageDivideFunc, m_image, 0.5, filepath_not_extension);
+					thread t3 = thread(ImageDivideFunc, m_image, 1.0, filepath_not_extension);
+					t2.join();
+					t3.join();
+
+
+					//큰이미지를 낮은해상도로 나눠 저장한 이미지들을 붙여서 낮은 해상도로 합친후 출력해야함
+
+
+					m_image = f1.get();
+
+
+				}
+				else
+				{
+
+				}
+
+#else
+				filepath_not_extension = DirectoryPath + '\\' + filename_notextension;
+
+				thread t1 = thread(ImageDivideFunc, m_image, 1.0, filepath_not_extension);
+				thread t2 = thread(ImageDivideFunc, m_image, 0.5, filepath_not_extension);
+				thread t3 = thread(ImageDivideFunc, m_image, 0.2, filepath_not_extension);
+
+				t1.join();
+				t2.join();
+				t3.join();
+
+#endif
+				FindClose(fileSearch);
+			}
+
+			//if(FindFirstFile(DirectoryPath + '\\' + "substring\\d*\\", ))
+
+
+
+
+
+			zoomrate_x = (double)m_image.cols / (double)rect.Width();
+			//zoomrate_y = zoomrate_x;
+			zoomrate_y = (double)m_image.rows / (double)rect.Height();
+			//zoomrate_x = zoomrate_y;
+
+
+
+		}	
+		catch (Exception ex)
+		{
+			TRACE("imread exception");
+
+		}
+
+
+
+
+#endif
+
+
+
+#if true //0618 문제 이걸 지우니까 오류없음
+
+
+
+
+
+
+
+		//m_image를 사용해서 그런거같음 m_image를 복사해서 넣는게 아니라 주소값만 건들이는거 같아서 m_image에를 쓴데에서 다문제가발새아는거가음
+		//int resize_cols, resize_rows;
+
+		//if (m_image.cols % 2 == 1)
+		//{
+		//	resize_cols = m_image.cols + 1;
+		//}
+		//else
+		//{
+		//	resize_cols = m_image.cols;
+		//}
+		//if (m_image.rows % 2 == 1)
+		//{
+		//	resize_rows = m_image.rows + 1;
+		//}
+		//else
+		//{
+		//	resize_rows = m_image.rows;
+		//}
+		//resize(m_image, m_image, cv::Size(resize_cols, resize_rows));
+
+
+		CreateBitampInfo(m_image.cols, m_image.rows, m_image.channels() * 8);
+
+		//이게 투명도조절이네
+		//m_image = 0.3 * m_image + 0.7 * cv::Scalar(0, 0, 0, 255);
+
+
+		//m_image.convertTo(m_image, CV_32FC3, 125.0/255); 
+		TRACE("\n @@@@@@@@@ MAT TYPE = %d \n", m_image.type());
+
+		aimage_info.SetValue(global_index++, substring, m_image);
+		aimage_info.opacity = 1.0;
+		//cv::imshow("test", aimage_info.image);
+
+		//aimage_info.originHeight = m_image.rows * 5; //일단엄청큰 이미지를 잘라서 해상도를 줄여 처음 출력하기 때문에 처음 해상도 크기 *5배가 origin크기가 된다
+		//aimage_info.originWidth = m_image.cols * 5;
+
+		aimage_info.originHeight = m_image.rows;
+		aimage_info.originWidth = m_image.cols;
+
+
+		imagelist.push_back(aimage_info);
+
+		m_list_box.AddString(substring);
+
+
+		m_slide.SetPos(100);
+
+		listcount++;
+#endif
+		//
+
+		//CString substring;
+		//int lastslash = pathname.ReverseFind`('\\');
+		//int stringlength = pathname.GetLength();
+		//substring = pathname.Right(stringlength - lastslash - 1);
+
+
+		//listselection 변경되서
+		OnDrawImage(true);
+
+
+
+
+	}
+
+
+
 }

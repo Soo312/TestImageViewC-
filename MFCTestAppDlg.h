@@ -41,6 +41,8 @@ protected:
 public:
 	Mat m_image; //화면에 출력될 이미지
 
+	Mat back_image; // 제일위를 제외하고 저장된 Mat
+
 
 	BITMAPINFO* m_pBitmapInfo;
 
@@ -54,6 +56,9 @@ public:
 	afx_msg void OnBnClickedOk();
 
 	CRect drawrect;
+
+	//확대후 확대시 저장해놓을 CRet
+	CRect beforerect;
 
 
 	double nowzoomrate = 1.0;
@@ -105,12 +110,12 @@ public:
 
 	bool bool_useopcaity;
 
-	Mat ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo);
+	Mat ImageAlphaBlend_Func(Mat result2, Image_info imagelist, Mat m_image2, CDC* pDC, int reduce_x, int reduce_y, BITMAPINFO* m_pBitmapInfo, int now_count , int quantity, bool ListSelected = false);
 //	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	
- 	static void TestThreadFunc(Mat result2, CDC* pDC, int reduce_x, 
+ 	static void Thread_AlphaBelnd_Func(Mat result2, CDC* pDC, int reduce_x, 
 		int reduce_y, BITMAPINFO* m_pBitmapInfo, Image_info imagelist, int imagecount
-	, void *pointer);
+	, void *pointer , int now_count, int quantity, bool ListSelect);
 
 
 	
@@ -128,8 +133,10 @@ public:
 
 	static void ListDbclickThread_func(void* pointer);
 
-	void refresh(CDC* pDC,Mat m_image,int reduce_x, int reduce_y);
+	void refresh(CDC* pDC,Mat m_image,int reduce_x, 
+		int reduce_y, int now_count, int quantity , bool ListSelect);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+	afx_msg void Event_menu_fileopen();
 };
 
 void ProcessWindowMessage();
